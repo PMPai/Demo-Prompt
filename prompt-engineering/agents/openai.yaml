@@ -1,0 +1,4 @@
+interface:
+  display_name: "提示词工程"
+  short_description: "将用户零散需求整理成可直接复制使用的六段式高质量提示词"
+  default_prompt: "Use $prompt-engineering to turn my rough request into a copy-ready six-section prompt."
