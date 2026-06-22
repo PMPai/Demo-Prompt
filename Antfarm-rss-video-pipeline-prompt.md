@@ -1,6 +1,6 @@
 # OpenClaw AntFarm RSS News Video Pipeline Prompt
 
-> 用途：把本文档中的“总提示词”完整提交给 OpenClaw，让它在 `snarktank/antfarm` 框架中建立一个可运行的多 Agent RSS 新闻视频生产工作流。
+> 用途：把本文档中的“总提示词”完整提交给 OpenClaw，让它在 `snarktank/antfarm` 框架中建立一个可运行的多 Agent RSS 新闻视频生产工作流。 
 
 ## 已确认目标
 
