@@ -1,6 +1,6 @@
 # AI Prompt and Agent Instruction Collection
 
-A curated collection of prompts, system instructions, agent workflows, and reusable AI operating guides. Each instruction set lives in its own Markdown file so it can be reviewed, copied, versioned, and improved independently.
+A curated collection of prompts, system instructions, agent workflows, and reusable AI operating guides. Each instruction set lives in its own Markdown file so it can be reviewed, copied, versioned, and improved independently. 
 
 ## Purpose
 
