@@ -12,7 +12,7 @@
 - 视频长度：8-12 分钟。
 - 内容风格：热点解读口吻。
 - 发布策略：第一版只生成视频与发布包，用户观看后手动发布；后续保留自动发布和后台数据抓取空间。
-- 数据库：第一版 SQLite，未来保留迁移 PostgreSQL 的结构。
+- 数据库：第一版 SQLite，未来保留迁移 PostgreSQL 的结构。 
 - 图片：优先使用 RSS / 原文图片；没有可用图片时调用 Wavespeed.ai API，模型为 Nano Banana Pro。
 - 语音：调用 Voicebox.sh API，voice profile 为 `Pai-1`。
 - 字幕：内嵌到视频画面。
