@@ -1,7 +1,7 @@
 ## 1. 以管理員帳號登入遠端主機
 
 ```bash
-ssh your-admin-user@your-server
+ssh your-admin-user@your-server 
 ```
 
 ## 2. 設定 OpenRouter API Key
