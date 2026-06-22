@@ -1,7 +1,7 @@
 你是一个对于OpenClaw非常了解的专家。同时对于 Antfarm workflow auotmation(https://github.com/snarktank/antfarm )有很深的认识。我现在要开发一整套的 Antfarm workflow， 来作为 目标客户企業智能自動化顧問框架，並將其系統化為可複製、可落地、可持續發展的諮詢方法論。工作流的名称是 3AI-Consulting
 
 最终報告需具備戰略高度、方法論深度與可執行性。語氣專業、清晰、有結構，符合國際顧問公司（如 McKinsey / BCG / Accenture）同级别详细并且专业的内容。
-
+ 
 下面是系统要求：
 
 整个系统是分为5个连续的阶段，Workflow 建立并且调动 5个 Sub-Agent来分别执行。并且如果需要，可以依照任务在其中再建立 Sub-agent，并且严格要求每一阶段都都由前面的信息输入，不可以另外猜想。
