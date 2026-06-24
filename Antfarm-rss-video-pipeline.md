@@ -580,7 +580,104 @@ runtime_inputs:
   - OpenRouter API：`moonshotai/kimi-k2.5`
   - OpenClaw：`openrouter/moonshotai/kimi-k2.5`
 
-## 8. 参考依据
+## 8. 部署后修复记录 (2026-06-24)
+
+### 8.1 Cron Job Delivery 配置修复
+
+**问题现象：**
+Agent cron jobs 执行失败，错误信息：
+```
+Channel is required when multiple channels are configured: discord, openclaw-weixin
+Set delivery.channel explicitly or use a main session with a previous channel.
+```
+
+**根本原因：**
+`antfarm workflow ensure-crons` 命令创建的 cron jobs 默认使用 `"channel": "last"`，但 isolated sessions 没有 "last" channel 上下文。
+
+**修复方案：**
+将所有 agent cron jobs 的 delivery 配置改为 `"mode": "none"`：
+
+```json
+{
+  "delivery": {
+    "mode": "none"
+  }
+}
+```
+
+**修复命令：**
+```bash
+# 重新生成所有 agent cron jobs
+node ~/.openclaw/workspace/antfarm/dist/cli/cli.js workflow ensure-crons rss-daily-video-pipeline
+
+# 然后手动更新每个 cron job 的 delivery.mode 为 "none"
+```
+
+### 8.2 Email 通知功能添加
+
+**新增功能：**
+Package agent 完成后自动发送 email 通知，包含最终视频和发布包。
+
+**配置要求：**
+- 发送者：`paipeiming@gmail.com` (通过 GOG_ACCOUNT 设置)
+- 接收者：`peiming.pai@gmail.com`
+- 附件：最终 MP4 视频 + publish-package.md
+
+**前置条件：**
+```bash
+# 1. 确保 gog CLI 已配置 Gmail OAuth
+gog status
+
+# 2. 验证 credentials 文件存在
+ls ~/Library/Application\ Support/gogcli/credentials.json
+
+# 3. 设置环境变量
+export GOG_ACCOUNT=paipeiming@gmail.com
+```
+
+**Package Agent 指令更新：**
+在 `agents/package/AGENTS.md` 中添加 email 发送步骤：
+
+```bash
+# 获取最终视频路径并发送邮件
+FINAL_VIDEO=$(ls /Volumes/2ndHOME/Video_Publication/output/YYYY-MM-DD/*.mp4 | head -1)
+PUBLISH_PACKAGE=/Volumes/2ndHOME/Video_Publication/output/YYYY-MM-DD/package/publish-package.md
+
+GOG_ACCOUNT=paipeiming@gmail.com gog gmail send \
+  --to peiming.pai@gmail.com \
+  --subject "[RSS Video] Daily AI News - $(date +%Y-%m-%d)" \
+  --body "RSS Daily Video Pipeline completed.\n\nFinal video: $FINAL_VIDEO\nPublish package: $PUBLISH_PACKAGE\n\nPlease upload to YouTube Shorts, TikTok, and Instagram Reels." \
+  --attach "$FINAL_VIDEO" \
+  --attach "$PUBLISH_PACKAGE"
+```
+
+**注意：** 如果 gog 不可用或邮件发送失败，记录错误但不阻塞 workflow。视频文件是主要输出。
+
+### 8.3 Workflow 状态检查命令
+
+```bash
+# 检查 workflow 状态
+node ~/.openclaw/workspace/antfarm/dist/cli/cli.js workflow status "<rss-url>"
+
+# 查看 workflow 日志
+node ~/.openclaw/workspace/antfarm/dist/cli/cli.js logs "<rss-url>"
+
+# 恢复失败的 workflow
+node ~/.openclaw/workspace/antfarm/dist/cli/cli.js workflow resume <run-id>
+
+# 停止 workflow
+node ~/.openclaw/workspace/antfarm/dist/cli/cli.js workflow stop <run-id>
+```
+
+### 8.4 已知限制
+
+1. **Workflow 代码位置：** 当前 workflow 位于 `~/.openclaw/workspace/antfarm/workflows/rss-daily-video-pipeline/`，这是 snarktank/antfarm 的本地副本。用户没有直接 push 权限到上游仓库。
+
+2. **本地修改：** 对 workflow 的修改（如添加 email 通知）是本地更改，需要通过其他方式备份或同步。
+
+3. **Cron job 管理：** 每次运行 `ensure-crons` 后，需要重新应用 delivery.mode="none" 的修复。
+
+## 9. 参考依据
 
 - AntFarm README：`https://github.com/snarktank/antfarm`
 - AntFarm custom workflow guide：`https://github.com/snarktank/antfarm/blob/main/docs/creating-workflows.md`
