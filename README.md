@@ -15,3 +15,4 @@ This repository is for storing practical prompts for working with AI tools and A
 - Research, writing, analysis, and planning prompts
 
 The goal is to keep prompts reusable, readable, and easy to adapt across different AI platforms.
+# Access Test
