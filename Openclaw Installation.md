@@ -118,10 +118,10 @@ journalctl --user -u openclaw-gateway -f
 ssh -N -L 18789:127.0.0.1:18789 your-admin-user@your-server
 ```
 
-## 20. 本機連線位址
+## 19. 本機連線位址
 
 ```text
-ws://127.0.0.1:18789
+http://127.0.0.1:18789
 ```
 
 依據：官方安裝指令、onboarding 指令與 OpenRouter 快速設定。([[docs.openclaw.ai](https://docs.openclaw.ai/start/getting-started?utm_source=chatgpt.com)][1])
