@@ -318,13 +318,17 @@ data/implementation.json
 data/schedule.json  
 data/checkpoints.json
 
-6. 第六阶段：汇总报告
+6. 第六阶段：汇总报告与动态仪表板
 
 Agent Name：Master agent  
 建议 ID：master
 
 目的：
-读取前五阶段通过质量检查的产出，建立完整的动态仪表板。
+读取前五阶段通过质量检查的产出，建立完整的动态仪表板数据层。
+
+**重要区分：**
+- **Master agent 的仪表板职责**：生成 `data/dashboard.json`（结构化资料层，含钻石图节点、阶段状态、指标、筛选器定义等），以及可选的静态快照 `Master.html`。这是工作流的正式交付物。
+- **动态仪表板**：由 3330 后台提供（http://localhost:3330/dashboard/<project_id>），连接业务数据库，按需读取 `data/dashboard.json` 渲染成交互式网页。仪表板位于工作流之外，不依赖 Master agent 生成的静态 HTML。
 
 不得另行编造一套策略、任务或 KPI。
 
@@ -356,11 +360,11 @@ Agent Name：Master agent
 没有实际经营数据时，实际值显示“暂无数据”。估算值单独展示，不能用零值或演示数字代替实绩。
 
 输出：
-Master.html
+Master.html（静态快照，可选）
 
 同时生成：
 handoffs/06-master.md  
-data/dashboard.json  
+data/dashboard.json（动态仪表板的正式资料交付物）
 data/artifact-manifest.json
 
 三、建立共享交接机制
@@ -400,13 +404,41 @@ Diamond-Marketing/
 
 上游内容变化后，识别并重新生成受影响的下游产出，保留版本记录。
 
+二点五、系统整体架构：一套大包分两部分
+
+Diamond-Marketing 应用系统以一个可交付的大包形式提供，内部分为两个核心部分：
+
+**第一部分：资料补齐（轻量本地后台，Port 3330）**
+- 轻量 Express + SQLite 后台，**默认 Port 3330**（DIAMOND_PORT 环境变量可覆盖）
+- 功能：项目输入表单（公司名称、官方网站、产品说明、目标市场等）、动态补资料表单（门禁不足时由系统根据缺失字段动态渲染）、项目状态与进度页面、HTML 报告阅读器
+- 业务数据库（SQLite）储存：项目输入、门禁状态、来源、证据与结论、假设、指标字典、成本与 ROI 情境、沟通方式、WBS、检查点、ARC 事件、客户身份映射、交付物版本及运行记录
+- **动态仪表板**：由本后台提供（http://localhost:3330/dashboard/<project_id>），读取业务数据库渲染交互式仪表板，支持筛选、下钻、来源链接与刷新。仪表板位于工作流之外，不依赖 Master agent 生成的静态 HTML
+
+**第二部分：Antfarm 工作流（6 个专职 Agent）**
+- 依序执行：信息收集 → 深度分析 → 优先目标 → 沟通策略 → 执行建议 → 汇总报告
+- 各阶段产出写入 Output/<project_id>/<run_id>/（HTML 报告、Markdown 交接、JSON 结构化数据）
+- 数据由后台 Importer 按 stage 同步写入业务数据库，供仪表板渲染
+
+**端口地图：**
+- **3330**：Diamond Marketing 后台（资料输入＋补件表单＋动态仪表板）
+- **3333**：Antfarm 原生 Dashboard，仅供查看工作流执行进度（只读参考，无需额外维护）
+
+**资料流：**
+1. 用户在 3330 填写项目输入表单 → 后端服务端校验 → 写入 input.json（version 递增）→ 自动触发 `antfarm workflow run diamond-marketing "<task>"`
+2. 第一阶段检查输入充分性：足够 → 继续六阶段；不足 → 写 gate.json、POST http://localhost:3330/api/gate、honest fail（`step fail <step-id> "waiting_data: ..."`）
+3. 后端接获通知 → 动态渲染补资料表单（missing_fields 内容完全由系统生成，含必填/选填、数值范围、「不知道」选项、上传、保存草稿）
+4. 用户提交 → 后端逐字段校验 → 合并写入 input.json（version 再递增）→ 标记 gate.json status 为 "fulfilled"（含 fulfilled_at 时间戳）→ **自动调用一次** `antfarm workflow resume <run-id>`（幂等：同一 gate 版本不重复 resume）
+5. 工作流重启第一阶段：读到 gate.json.status=="fulfilled" 且 input.json 已更新 → 继续正常研究
+6. 六阶段依序执行，各阶段产出 JSON 由后台 Importer 同步写入业务 SQLite
+7. 仪表板（http://localhost:3330/dashboard/<project_id>）实时读取业务数据库，渲染动态视图
+
+**严格红线：**
+- 业务数据库与 Antfarm 内部状态库完全隔离；不得为存放业务资料而修改 Antfarm 内部表结构
+- 等待用户不消耗技术重试预算；门禁失败由后台在补件后主动 resume，不依赖 Agent 空等
+
 四、建立本地后台和数据库
 
-允许建立轻量本地后台，支持补资料表单、项目状态、数据存储、报告读取、仪表板刷新和工作流接续。
-
-先检查项目配置、现有业务数据库及其结构。存在兼容数据库时继续使用；没有时创建独立业务数据库，默认可采用 SQLite。
-
-Antfarm 自己的运行状态数据库与营销业务数据库用途不同。不得为了存放业务资料而随意修改 Antfarm 内部表结构。
+轻量本地后台，**默认 Port 3330**（DIAMOND_PORT 环境变量可覆盖），支持补资料表单、项目状态、数据存储、报告读取、动态仪表板和工作流接续。
 
 业务数据至少覆盖：
 
@@ -438,6 +470,15 @@ ARC 对齐必须包括：
 先检查目标 Antfarm 版本实际支持的状态、CLI、工作流字段和扩展方式。不得凭空声明存在 human_input、pause、webhook 或其他原生功能。
 
 优先通过本地业务编排入口实现持久化资料门禁，必要时增加经过验证的适配层。第一阶段的资料检查和补充规则由 Diamond-Information agent 负责。
+
+**后端 URL：http://localhost:3330**（DIAMOND_PORT 环境变量可覆盖）。
+
+完整资料流程（门禁环节）：
+1. 用户于 3330 填写项目输入表单 → 后端服务端校验 → 写入 input.json（version 递增）→ 自动触发 `antfarm workflow run diamond-marketing "<task>"`
+2. 第一阶段检查输入：足够 → 继续六阶段；不足 → 写 gate.json（missing_fields 数组）→ POST http://localhost:3330/api/gate → honest fail（`step fail <step-id> "waiting_data: ..."`）
+3. 后端接获通知 → 动态渲染补资料表单（missing_fields 内容完全由系统生成，含必填/选填、数值范围、「不知道」选项、上传、保存草稿）
+4. 用户提交 → 后端逐字段校验 → 合并写入 input.json（version 再递增）→ 标记 gate.json status 为 "fulfilled"（含 fulfilled_at 时间戳）→ **自动调用一次** `antfarm workflow resume <run-id>`（幂等：同一 gate 版本不重复 resume）
+5. 工作流重启第一阶段：读到 gate.json.status=="fulfilled" 且 input.json 已更新 → 继续正常研究
 
 必须满足：
 
@@ -562,16 +603,16 @@ RESULT
 
 交付内容包括：
 
-1. 符合实际 Antfarm 版本的完整 workflow.yml。
-2. 六个 Agent 的 AGENTS.md、SOUL.md、IDENTITY.md 和所需共享模板。
-3. 本地后台、动态补资料表单和数据校验规则。
-4. 业务数据库初始化、兼容迁移与数据导入机制。
-5. 六个阶段的 HTML 报告生成能力及 Markdown、JSON 交接机制。
-6. 与业务数据库连接的动态 Master.html 仪表板。
-7. 必要的自动质量检查和有限重试机制。
-8. README，说明环境要求、配置、安装、启动、输入、接续、数据更新及常见故障。
-9. 验证报告，区分已验证、模拟验证与未验证项目。
-10. 完整可移交的 ZIP 包，排除凭证、依赖缓存和无关文件。
+1. 符合实际 Antfarm 版本的完整 workflow.yml（含 gate 门禁与六阶段步骤）
+2. 六个 Agent 的 AGENTS.md、SOUL.md、IDENTITY.md 和所需共享模板
+3. 本地后台（**Port 3330**）、动态补资料表单与数据校验规则
+4. 业务数据库初始化、兼容迁移与数据导入机制（Importer：按 stage 将 data/*.json 同步写入业务 SQLite）
+5. 六个阶段的 HTML 报告生成能力及 Markdown、JSON 交接机制
+6. **动态仪表板**：由 3330 后台渲染（http://localhost:3330/dashboard/<project_id>），读取业务数据库，支持筛选、下钻、来源链接与刷新；Master agent 负责生成 `data/dashboard.json` 作为资料层
+7. 必要的自动质量检查和有限重试机制
+8. README，说明环境要求、配置、安装（含 workflow install + npm install）、启动（后台 3330、Antfarm Dashboard 3333）、输入、接续、数据更新及常见故障
+9. 验证报告，区分已验证、模拟验证与未验证项目
+10. 完整可移交的 ZIP 包（包含大包两部分：backend/ + workflow/），排除凭证、依赖缓存和无关文件
 
 HTML 报告共享统一的配色、字体、组件、导航、图例和状态语义。所有本地链接和资源路径可用。
 
